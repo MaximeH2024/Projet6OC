@@ -1,5 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const userRoutes = require('./routes/User');
 
 const app = express();
 
@@ -16,5 +17,7 @@ app.use((req, res, next) => {
     console.error('Connexion à MongoDB échouée :', error.message);
   });
 
+  
+app.use('/api/auth', userRoutes);
 
 module.exports = app;
