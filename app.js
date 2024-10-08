@@ -3,10 +3,11 @@ const mongoose = require('mongoose');
 const bookRoutes = require('./routes/book');
 const userRoutes = require('./routes/user');
 const path = require('path');
+require('dotenv').config();
 
 const app = express();
 
-mongoose.connect(`mongodb+srv://mhouguet:cWc0jJ8O9Qek7Ooo@projet6oc.orivc.mongodb.net/?retryWrites=true&w=majority&appName=Projet6OC`)
+mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connexion à MongoDB réussie !'))
   .catch(() => console.log('Connexion à MongoDB échouée !'));
 

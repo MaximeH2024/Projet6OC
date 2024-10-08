@@ -99,27 +99,63 @@ exports.getOneBook = (req, res, next) => {
     );
   }
 
-exports.updateBook = (req, res, next) => {
-    const bookObject = req.file ? {
-        ...JSON.parse(req.body.book),
-        imageUrl: `${req.protocol}://${req.get('host')}/images/opt_${req.file.filename}`
-    } : { ...req.body };
+  exports.updateBook = (req, res, next) => {
+    Book.findOne({ _id: req.params.id })
+      .then((book) => {
+        if (book.userId != req.auth.userId) {
+          return res.status(401).json({ message: 'Not authorized' });
+        }
   
-    delete bookObject._userId;
-    Book.findOne({_id: req.params.id})
-        .then((book) => {
-            if (book.userId != req.auth.userId) {
-                res.status(401).json({ message : 'Not authorized'});
-            } else {
-                Book.updateOne({ _id: req.params.id}, { ...bookObject, _id: req.params.id})
-                .then(() => res.status(200).json({message : 'Objet modifié!'}))
-                .catch(error => res.status(401).json({ error }));
+        const bookObject = req.file
+          ? {
+              ...JSON.parse(req.body.book),
             }
-        })
-        .catch((error) => {
-            res.status(400).json({ error });
-        });
- };
+          : { ...req.body };
+  
+        // Handle image update if a new file is provided
+        if (req.file) {
+          const oldFilename = book.imageUrl.split('/images/')[1]; // Extract the old image filename
+          const newFilename = `opt_${Date.now()}_${req.file.originalname}`; // Generate new optimized filename
+          const inputPath = req.file.path; // Path of the new image file
+          const outputPath = path.join('images', newFilename); // Path to store the optimized new image
+  
+          // Optimize the new image
+          sharp(inputPath)
+            .resize(500)
+            .toFile(outputPath)
+            .then(() => {
+              // Delete the old optimized image file
+              fs.unlink(path.join('images', oldFilename), (err) => {
+                if (err) {
+                  console.error('Error deleting the old image:', err);
+                } else {
+                  console.log('Old image deleted successfully.');
+                }
+              });
+  
+              // Update the book object with the new image URL
+              bookObject.imageUrl = `${req.protocol}://${req.get('host')}/images/${newFilename}`;
+  
+              // Save the updated book
+              Book.updateOne({ _id: req.params.id }, { ...bookObject, _id: req.params.id })
+                .then(() => res.status(200).json({ message: 'Book updated successfully!' }))
+                .catch((error) => res.status(400).json({ error }));
+            })
+            .catch((error) => {
+              console.error('Error optimizing the new image:', error);
+              res.status(500).json({ error: 'Image optimization failed.' });
+            });
+        } else {
+          // If no new image is uploaded, just update the book data
+          Book.updateOne({ _id: req.params.id }, { ...bookObject, _id: req.params.id })
+            .then(() => res.status(200).json({ message: 'Book updated successfully!' }))
+            .catch((error) => res.status(400).json({ error }));
+        }
+      })
+      .catch((error) => {
+        res.status(400).json({ error });
+      });
+  };
 
  exports.deleteOneBook = (req, res, next) => {
   Book.findOne({ _id: req.params.id})
