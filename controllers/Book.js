@@ -14,7 +14,7 @@ exports.createBook = (req, res, next) => {
     if (!req.file) {
       return res.status(400).json({ error: "Seuls les fichiers image sont autorisés (jpg, jpeg, png, webp)." });
     }
-    
+
     const bookObject = JSON.parse(req.body.book);
     delete bookObject._id;
     delete bookObject._userId;
@@ -107,9 +107,7 @@ exports.getOneBook = (req, res, next) => {
             }
           });
   
-          // Utiliser la nouvelle image optimisée, assurons-nous d'utiliser `req.file.filename` qui contient l'image optimisée
-          const cacheBuster = `?t=${Date.now()}`;
-          bookObject.imageUrl = `${req.protocol}://${req.get("host")}/images/opt_${req.file.filename}${cacheBuster}`;
+          bookObject.imageUrl = `${req.protocol}://${req.get("host")}/images/opt_${req.file.filename}`;
         }
   
         // Mettre à jour le livre dans la base de données
