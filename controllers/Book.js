@@ -5,6 +5,16 @@ const Book = require('../models/Book');
 
 exports.createBook = (req, res, next) => {
   try {
+    // Si une erreur a été levée par Multer (type de fichier non autorisé)
+    if (req.fileValidationError) {
+      return res.status(400).json({ error: 'Seuls les fichiers image sont autorisés (jpg, jpeg, png, webp).' });
+    }
+
+    // Vérifier si le fichier est bien une image valide
+    if (!req.file) {
+      return res.status(400).json({ error: "Seuls les fichiers image sont autorisés (jpg, jpeg, png, webp)." });
+    }
+    
     const bookObject = JSON.parse(req.body.book);
     delete bookObject._id;
     delete bookObject._userId;
@@ -139,7 +149,7 @@ exports.userRating = (req, res, next ) => {
   function averageCalcul(ratings) {
     const totalGrade = ratings.reduce((total, rate) => total + rate.grade, 0);
     const average = totalGrade / ratings.length;
-    return average;
+    return parseFloat(average.toFixed(2)); // Arrondir à deux décimales
   }
   Book.findOne({ _id: req.params.id })
     .then(book => {

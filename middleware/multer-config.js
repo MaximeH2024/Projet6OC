@@ -33,8 +33,10 @@ const upload = multer({
     // Vérifier le type de fichier
     if (MIME_TYPES[file.mimetype]) {
       callback(null, true);
-    } else {
-      callback(new Error('Seuls les fichiers image sont autorisés (jpg, jpeg, png).'));
+     } else {
+      // Marquer une erreur spécifique pour les fichiers non autorisés
+      req.fileValidationError = 'Seuls les fichiers image sont autorisés (jpg, jpeg, png, webp).';
+      return callback(null, false);
     }
   }
 }).single('image');
