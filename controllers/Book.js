@@ -5,66 +5,40 @@ const Book = require('../models/Book');
 
 exports.createBook = (req, res, next) => {
   try {
-    // Vérifier si le corps de la requête contient bien un livre
-    if (!req.body.book) {
-      return res.status(400).json({ message: "Données du livre manquantes" });
-    }
-
-    // Parser le livre seulement si disponible
     const bookObject = JSON.parse(req.body.book);
-
-    // Supprimer les propriétés non voulues
     delete bookObject._id;
     delete bookObject._userId;
-    delete bookObject.ratings;
-    delete bookObject.averageRating;
 
-    // Vérifier si un fichier a bien été envoyé
-    if (!req.file) {
-      return res.status(400).json({ message: "Image manquante" });
-    }
+    // Récupérer le rating à partir de l'objet book
+    const userRating = bookObject.ratings && bookObject.ratings.length > 0
+      ? bookObject.ratings[0].grade
+      : 0;  // S'il n'y a pas de note, utiliser 0 comme valeur par défaut
 
-    const inputPath = req.file.path; // Chemin de l'image téléchargée (entrée)
-    const optimizedFilename = `opt_${Date.now()}_${req.file.originalname}`; // Nouveau nom pour l'image optimisée avec un timestamp
-    const outputPath = path.join('images', optimizedFilename); // Chemin du fichier optimisé
+    const optimizedImageFilename = `opt_${req.file.filename}`;
+    const book = new Book({
+      ...bookObject,
+      userId: req.auth.userId,
+      imageUrl: `${req.protocol}://${req.get("host")}/images/${optimizedImageFilename}`,
+      ratings: [
+        {
+          userId: req.auth.userId,
+          grade: userRating // Utiliser le rating récupéré
+        }
+      ],
+      averageRating: userRating // Initialiser l'averageRating avec le rating reçu
+    });
 
-    // Optimiser l'image avec Sharp
-    sharp(inputPath)
-      .resize(500) // Redimensionner l'image à une largeur maximale de 500px
-      .toFile(outputPath) // Sauvegarder l'image optimisée sous un autre nom
+    // Sauvegarder le livre dans la base de données
+    book.save()
       .then(() => {
-        // Supprimer l'image originale après optimisation
-        fs.unlink(inputPath, (err) => {
-          if (err) {
-            console.error('Erreur lors de la suppression du fichier original :', err);
-          } else {
-            console.log('Fichier original supprimé avec succès.');
-          }
-        });
-
-        // Créer le livre avec le lien vers l'image optimisée
-        const book = new Book({
-          ...bookObject,
-          userId: req.auth.userId, // Ajoute l'ID utilisateur
-          imageUrl: `${req.protocol}://${req.get('host')}/images/${optimizedFilename}`, // Utilise l'image optimisée
-          ratings: [],
-          averageRating: 0 // Initialiser la note moyenne à 0
-        });
-
-        // Sauvegarder le livre dans la base de données
-        book.save()
-          .then(() => res.status(201).json({ message: 'Livre enregistré avec succès !' }))
-          .catch(error => res.status(400).json({ error }));
-
+        res.status(201).json({ message: "Livre enregistré avec succès !" });
       })
-      .catch(err => {
-        console.error('Erreur lors de l\'optimisation de l\'image :', err);
-        res.status(500).json({ error: 'Erreur lors de l\'optimisation de l\'image.' });
+      .catch((error) => {
+        res.status(400).json({ error });
       });
 
   } catch (error) {
-    // Gestion des erreurs
-    res.status(400).json({ message: "Erreur lors de la création du livre : " + error.message });
+    res.status(400).json({ error: "Données invalides ou mal formatées." });
   }
 };
 
@@ -102,57 +76,36 @@ exports.getOneBook = (req, res, next) => {
   exports.updateBook = (req, res, next) => {
     Book.findOne({ _id: req.params.id })
       .then((book) => {
+        // Vérifier si l'utilisateur est autorisé à modifier ce livre
         if (book.userId != req.auth.userId) {
           return res.status(401).json({ message: 'Not authorized' });
         }
   
+        // Désérialiser les données du livre (comme dans createBook)
         const bookObject = req.file
-          ? {
-              ...JSON.parse(req.body.book),
-            }
-          : { ...req.body };
+          ? { ...JSON.parse(req.body.book) } // S'il y a un fichier, traiter req.body.book comme JSON
+          : { ...req.body }; // Sinon, utiliser req.body directement
   
-        // Si une nouvelle image est uploadée
+        // Si une nouvelle image est fournie (optimisée par optimizeImage)
         if (req.file) {
-          const oldFilename = book.imageUrl.split('/images/')[1]; // Récupérer le nom de l'ancienne image
-          const inputPath = req.file.path; // Chemin de la nouvelle image
-          const outputPath = path.join('images', oldFilename); // Utiliser le même nom pour écraser l'image existante
+          const oldFilename = book.imageUrl.split('/images/')[1]; // Nom de l'ancienne image
   
-          // Optimiser la nouvelle image et écraser l'ancienne
-          sharp(inputPath)
-            .resize(500)
-            .toFile(outputPath)
-            .then(() => {
-              // Supprimer la nouvelle image temporaire après optimisation
-              fs.unlink(inputPath, (err) => {
-                if (err) {
-                  console.error('Erreur lors de la suppression de l\'image temporaire :', err);
-                } else {
-                  console.log('Image temporaire supprimée avec succès.');
-                }
-              });
+          // Supprimer l'ancienne image du serveur
+          fs.unlink(`images/${oldFilename}`, (err) => {
+            if (err) {
+              console.error('Erreur lors de la suppression de l\'ancienne image :', err);
+            }
+          });
   
-              // Ajouter un cache-buster à l'URL de l'image
-              const cacheBuster = `?t=${Date.now()}`; // Ajoute un timestamp à l'URL pour éviter le cache
-  
-              // Mettre à jour les autres informations du livre
-              bookObject.imageUrl = `${req.protocol}://${req.get('host')}/images/${oldFilename}${cacheBuster}`;
-  
-              // Sauvegarder les modifications dans la base de données
-              Book.updateOne({ _id: req.params.id }, { ...bookObject, _id: req.params.id })
-                .then(() => res.status(200).json({ message: 'Livre mis à jour avec succès !' }))
-                .catch((error) => res.status(400).json({ error }));
-            })
-            .catch((error) => {
-              console.error('Erreur lors de l\'optimisation de la nouvelle image :', error);
-              res.status(500).json({ error: 'Optimisation de l\'image échouée.' });
-            });
-        } else {
-          // Si aucune nouvelle image n'est uploadée, seulement mettre à jour les autres champs du livre
-          Book.updateOne({ _id: req.params.id }, { ...bookObject, _id: req.params.id })
-            .then(() => res.status(200).json({ message: 'Livre mis à jour avec succès !' }))
-            .catch((error) => res.status(400).json({ error }));
+          // Utiliser la nouvelle image optimisée, assurons-nous d'utiliser `req.file.filename` qui contient l'image optimisée
+          const cacheBuster = `?t=${Date.now()}`;
+          bookObject.imageUrl = `${req.protocol}://${req.get("host")}/images/opt_${req.file.filename}${cacheBuster}`;
         }
+  
+        // Mettre à jour le livre dans la base de données
+        Book.updateOne({ _id: req.params.id }, { ...bookObject, _id: req.params.id })
+          .then(() => res.status(200).json({ message: 'Livre mis à jour avec succès !' }))
+          .catch((error) => res.status(400).json({ error }));
       })
       .catch((error) => {
         res.status(400).json({ error });
