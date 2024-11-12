@@ -6,7 +6,7 @@
 Développez le back-end d'un site de notation de livres
 
 ## Description
-Ce projet consiste à développer le back-end d'un site de notation de livres. Vous serez chargé de créer un serveur avec Express, de le connecter à une base de données MongoDB, et de mettre en place les opérations CRUD pour gérer les notations de livres. Une attention particulière sera portée à la sécurité des données et à l'optimisation du code.
+Ce projet a pour objectif de développer l'architecture back-end d'un site de notation de livres, permettant aux utilisateurs de créer des comptes, de noter des ouvrages, et de consulter les évaluations des autres utilisateurs. Le serveur, développé avec Node.js et Express, est connecté à une base de données MongoDB pour une gestion sécurisée et efficace des données, avec une architecture MVC pour assurer la maintenabilité et la scalabilité du code.
 
 ## Objectifs
 - Créer un serveur avec Express et connecter une base de données MongoDB.
