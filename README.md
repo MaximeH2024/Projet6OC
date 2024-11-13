@@ -2,8 +2,7 @@
     <img src="https://d4804za1f1gw.cloudfront.net/wp-content/uploads/sites/50/2018/11/hero.jpg" alt="Book Rating Site" width="300px">
 </div>
 
-# Projet 6 : 
-Développez le back-end d'un site de notation de livres
+# Projet 6 : Développez le back-end d'un site de notation de livres
 
 ## Description
 Ce projet a pour objectif de développer l'architecture back-end d'un site de notation de livres, permettant aux utilisateurs de créer des comptes, de noter des ouvrages, et de consulter les évaluations des autres utilisateurs. Le serveur, développé avec Node.js et Express, est connecté à une base de données MongoDB pour une gestion sécurisée et efficace des données, avec une architecture MVC pour assurer la maintenabilité et la scalabilité du code.
